@@ -1,94 +1,74 @@
-# Obsidian Sample Plugin
+# Obsidian Tab Control Plugin
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+A simple plugin for Obsidian that helps you organize your tabs by providing commands to sort tabs by name and remove duplicate tabs.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+## Features
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+- **Sort tabs by name**: Alphabetically sorts all tabs in your current workspace
+- **Remove duplicate tabs**: Closes duplicate tabs and keeps only one instance of each file
+- **Organize tabs**: Combines both operations - removes duplicates and then sorts alphabetically
+- **Ribbon icon**: Quick access to organize tabs with a single click
 
-## First time developing plugins?
+## Commands
 
-Quick starting guide for new plugin devs:
+This plugin adds the following commands to Obsidian:
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+1. **Sort tabs by name** - Sorts all tabs alphabetically (case-insensitive)
+2. **Remove duplicate tabs (keep one)** - Closes duplicate tabs, keeping only the first occurrence
+3. **Organize tabs (sort and remove duplicates)** - Performs both operations in sequence
 
-## Releasing new releases
+## Usage
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+### Via Command Palette
+1. Open the Command Palette (`Ctrl/Cmd + P`)
+2. Type "Tab Control" to see available commands
+3. Select the desired command
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+### Via Ribbon Icon
+Click the "layers" icon in the left ribbon to organize all tabs (remove duplicates and sort)
 
-## Adding your plugin to the community plugin list
+### Via Hotkeys
+You can assign custom hotkeys to any of the commands in Settings > Hotkeys
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+## How it works
 
-## How to use
+- **Duplicate detection**: Files are considered duplicates if they have the same file path. For non-file tabs (like graph view), the display name is used.
+- **Sorting**: Tabs are sorted alphabetically by their display name in a case-insensitive manner.
+- **Scope**: The plugin works on all tabs in your current Obsidian workspace.
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+## Installation
 
-## Manually installing the plugin
+### Manual Installation
+1. Download the latest release
+2. Extract the files to your vault's `.obsidian/plugins/tab-control/` folder
+3. Enable the plugin in Settings > Community Plugins
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+### From Community Plugins
+Search for "Tab Control" in the Community Plugins section of Obsidian settings.
 
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint .\src\`
+## Development
 
-## Funding URL
+This plugin is built using TypeScript and the Obsidian API.
 
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+### Building
+```bash
+npm run build
 ```
 
-If you have multiple URLs, you can also do:
-
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
+### Development
+```bash
+npm run dev
 ```
 
-## API Documentation
+### Installing dependencies
+```bash
+npm i
+```
 
-See https://github.com/obsidianmd/obsidian-api
+## License
+
+This project is licensed under the MIT License.
+
+## Support
+
+If you encounter any issues or have feature requests, please create an issue on the GitHub repository.

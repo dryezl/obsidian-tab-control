@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-sample-plugin",
+	"name": "obsidian-tab-control",
 	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"description": "Control tabs in Obsidian: sort tabs by name and remove duplicates",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",

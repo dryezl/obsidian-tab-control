@@ -1,134 +1,234 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, Notice, Plugin, WorkspaceLeaf, TFile } from 'obsidian';
 
-// Remember to rename these classes and interfaces!
-
-interface MyPluginSettings {
-	mySetting: string;
+interface LeafData {
+	leaf: WorkspaceLeaf;
+	name: string;
+	filePath: string | null;
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
-}
-
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class TabControlPlugin extends Plugin {
 
 	async onload() {
-		await this.loadSettings();
-
-		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-		// Perform additional things with the ribbon
-		ribbonIconEl.addClass('my-plugin-ribbon-class');
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status Bar Text');
-
-		// This adds a simple command that can be triggered anywhere
+		// Add command to sort tabs by name
 		this.addCommand({
-			id: 'open-sample-modal-simple',
-			name: 'Open sample modal (simple)',
+			id: 'sort-tabs-by-name',
+			name: 'Sort tabs by name',
 			callback: () => {
-				new SampleModal(this.app).open();
+				this.sortTabsByName();
 			}
 		});
-		// This adds an editor command that can perform some operation on the current editor instance
+
+		// Add command to remove duplicate tabs
 		this.addCommand({
-			id: 'sample-editor-command',
-			name: 'Sample editor command',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				console.log(editor.getSelection());
-				editor.replaceSelection('Sample Editor Command');
+			id: 'remove-duplicate-tabs',
+			name: 'Remove duplicate tabs (keep one)',
+			callback: () => {
+				this.removeDuplicateTabs();
 			}
 		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
+
+		// Add command to do both operations
 		this.addCommand({
-			id: 'open-sample-modal-complex',
-			name: 'Open sample modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
+			id: 'organize-tabs',
+			name: 'Organize tabs (sort and remove duplicates)',
+			callback: () => {
+				// First remove duplicates, then sort
+				this.removeDuplicateTabs();
+				// Small delay to ensure duplicate removal completes before sorting
+				setTimeout(() => {
+					this.sortTabsByName();
+				}, 50);
+			}
+		});
+
+		// Add ribbon icon for quick access
+		this.addRibbonIcon('layers', 'Organize tabs', () => {
+			this.removeDuplicateTabs();
+			setTimeout(() => {
+				this.sortTabsByName();
+			}, 50);
+		});
+	}
+
+	sortTabsByName() {
+		const workspace = this.app.workspace;
+		
+		// Get all leaves that are currently in tabs
+		const allLeaves = this.getAllTabLeaves();
+		
+		if (allLeaves.length === 0) {
+			new Notice('No tabs found to sort');
+			return;
+		}
+
+		// Group leaves by their parent container
+		const tabGroups = new Map<any, WorkspaceLeaf[]>();
+		allLeaves.forEach(leaf => {
+			const parent = leaf.parent;
+			if (!tabGroups.has(parent)) {
+				tabGroups.set(parent, []);
+			}
+			tabGroups.get(parent)!.push(leaf);
+		});
+
+		let totalSorted = 0;
+		const activeLeaf = workspace.getLeaf;
+
+		// Sort each tab group
+		tabGroups.forEach((leaves, parent) => {
+			if (leaves.length <= 1) return;
+
+			// Create array of leaf data with their display names
+			const leafData: LeafData[] = leaves.map(leaf => ({
+				leaf,
+				name: this.getLeafDisplayName(leaf),
+				filePath: this.getLeafFilePath(leaf)
+			}));
+
+			// Check if already sorted
+			const currentOrder = leafData.map(data => data.name);
+			const sortedOrder = [...currentOrder].sort((a, b) => 
+				a.toLowerCase().localeCompare(b.toLowerCase())
+			);
+
+			if (JSON.stringify(currentOrder) === JSON.stringify(sortedOrder)) {
+				return; // Already sorted, skip this group
+			}
+
+			// Sort by name (case-insensitive)
+			leafData.sort((a, b) => 
+				a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+			);
+
+			// Reorder tabs by manipulating the parent's children array
+			try {
+				// Access the parent's children array directly
+				const parentChildren = (parent as any).children;
+				if (parentChildren && Array.isArray(parentChildren)) {
+					// Clear the children array
+					parentChildren.length = 0;
+					// Add leaves back in sorted order
+					leafData.forEach(data => {
+						parentChildren.push(data.leaf);
+					});
+					
+					// Force a layout update
+					if (typeof (parent as any).recomputeChildrenDimensions === 'function') {
+						(parent as any).recomputeChildrenDimensions();
 					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
+					
+					totalSorted += leaves.length;
 				}
+			} catch (error) {
+				console.error('Error reordering tabs:', error);
+				// Fallback: just report that we can't sort this group
+				new Notice('Could not sort some tabs - they may be in a special view');
 			}
 		});
 
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		// Trigger a workspace layout save to persist the changes
+		workspace.requestSaveLayout();
 
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			console.log('click', evt);
+		if (totalSorted > 0) {
+			new Notice(`Sorted ${totalSorted} tabs by name`);
+			
+			// Restore the active leaf if it was moved
+			if (activeLeaf) {
+				workspace.setActiveLeaf(activeLeaf, { focus: true });
+			}
+		} else {
+			new Notice('Tabs are already sorted alphabetically');
+		}
+	}
+
+	removeDuplicateTabs() {
+		const workspace = this.app.workspace;
+		
+		// Get all leaves that are currently in tabs
+		const allLeaves = this.getAllTabLeaves();
+		
+		if (allLeaves.length === 0) {
+			new Notice('No tabs found to process');
+			return;
+		}
+
+		// Track seen files by their path
+		const seenFiles = new Map<string, WorkspaceLeaf>();
+		const duplicatesToClose: WorkspaceLeaf[] = [];
+
+		allLeaves.forEach(leaf => {
+			const filePath = this.getLeafFilePath(leaf);
+			const displayName = this.getLeafDisplayName(leaf);
+			
+			// Use file path as the primary key, fall back to display name for non-file views
+			const key = filePath || displayName;
+			
+			if (seenFiles.has(key)) {
+				// This is a duplicate - mark for closing
+				duplicatesToClose.push(leaf);
+			} else {
+				// First occurrence - keep it
+				seenFiles.set(key, leaf);
+			}
 		});
 
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
+		// Close duplicate tabs
+		duplicatesToClose.forEach(leaf => {
+			leaf.detach();
+		});
+
+		const removedCount = duplicatesToClose.length;
+		if (removedCount > 0) {
+			new Notice(`Removed ${removedCount} duplicate tabs`);
+		} else {
+			new Notice('No duplicate tabs found');
+		}
+	}
+
+	private getAllTabLeaves(): WorkspaceLeaf[] {
+		const leaves: WorkspaceLeaf[] = [];
+		
+		// Get all leaves from workspace
+		this.app.workspace.iterateAllLeaves(leaf => {
+			// Check if this leaf is in a tab container (has siblings or is in a tab group)
+			if (leaf.parent && (leaf.parent as any).type === 'tabs') {
+				leaves.push(leaf);
+			}
+		});
+
+		return leaves;
+	}
+
+	private getLeafDisplayName(leaf: WorkspaceLeaf): string {
+		if (leaf.view && leaf.view.getDisplayText) {
+			return leaf.view.getDisplayText();
+		}
+		
+		// Fallback to file name if available
+		const file = this.getLeafFile(leaf);
+		if (file) {
+			return file.basename;
+		}
+		
+		// Final fallback
+		return leaf.view?.getViewType() || 'Unknown';
+	}
+
+	private getLeafFilePath(leaf: WorkspaceLeaf): string | null {
+		const file = this.getLeafFile(leaf);
+		return file ? file.path : null;
+	}
+
+	private getLeafFile(leaf: WorkspaceLeaf): TFile | null {
+		// Check if the view has a file property and it's a TFile
+		const view = leaf.view as any;
+		if (view && view.file && view.file instanceof TFile) {
+			return view.file;
+		}
+		return null;
 	}
 
 	onunload() {
-
-	}
-
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-	}
-
-	async saveSettings() {
-		await this.saveData(this.settings);
-	}
-}
-
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
-
-	onOpen() {
-		const {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
-}
-
-class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
-
-	constructor(app: App, plugin: MyPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
-
-	display(): void {
-		const {containerEl} = this;
-
-		containerEl.empty();
-
-		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
+		// Plugin cleanup if needed
 	}
 }
